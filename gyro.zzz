@@ -1,0 +1,7 @@
+deps:
+  zzz:
+    src:
+      github:
+        user: gruebite
+        repo: zzz
+        ref: main

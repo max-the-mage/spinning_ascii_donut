@@ -1,0 +1,10 @@
+render:
+  width: 300
+  height: 70
+  K2: 3.0
+
+torus:
+  points_per_revolution: 15.0
+  rotation_speed: 15.0
+  R1: 0.25 # radius of circle
+  R2: 2.0 # distance from axis to circle center
