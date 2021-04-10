@@ -8,14 +8,10 @@ fn range(len: usize) []const u0 {
     return @as([*]u0, undefined)[0..len];
 }
 
-
 const lumi = ".'`^\",:;Il!i><~+_-?][}{1)(|\\/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B$@";
 const lumi_mult: f32 = @divFloor(@intToFloat(f32, lumi.len), @sqrt(2.0));
 
-//const points_per_revolution: f32 = 20.0;
-
 const pi2 = std.math.pi*2.0;
-
 
 var fps_timer: Timer = undefined;
 var delta_timer: Timer = undefined;
@@ -59,20 +55,15 @@ pub fn main() !void {
 
     var a: f32 = 0.0;
     var b: f32 = 0.0;
-
     
-
     var config_file = try std.fs.cwd().openFile("res/config.zzz", .{.read = true});
-    
-    var data = try getRenderData(alloc, &config_file);
+    var data = getRenderData(try getConfigNode(alloc, &config_file));
 
-    var thread_data = ThreadData{
+    var cu_thread = try std.Thread.spawn(updateDataThread, .{
         .allocator = alloc,
         .render_data = &data,
         .config_file = &config_file,
-    };
-    var cu_thread = try std.Thread.spawn(updateDataThread, thread_data);
-
+    });
 
     owidth = data.width+1;
 
@@ -93,18 +84,23 @@ pub fn main() !void {
 
         a += data.rotation_speed*delta_multiplier*0.0010;
         b += data.rotation_speed*delta_multiplier*0.0006;
-
     }
 }
 
-fn getRenderData(alloc: *std.mem.Allocator, config_file: *std.fs.File) !RenderData {
+/// loads config data from file and returns the parsed zzz root node
+fn getConfigNode(alloc: *std.mem.Allocator, config_file: *std.fs.File) !*zzz.ZNode {
     const config_text = try config_file.readToEndAlloc(alloc, 4096);
     defer alloc.free(config_text);
-    try config_file.seekTo(0);
+    try config_file.seekTo(0); // reset back to start of file
 
     var config_tree = zzz.ZTree(1, 30){};
     const root = try config_tree.appendText(config_text);
     root.convertStrings();
+
+    return root;
+}
+
+fn getRenderData(root: *zzz.ZNode) RenderData {
 
     const render = root.getChild(0).?;
     const torus = root.getChild(1).?;
@@ -136,21 +132,8 @@ fn getRenderData(alloc: *std.mem.Allocator, config_file: *std.fs.File) !RenderDa
     };
 }
 
-fn updateDataThread(data: ThreadData) !void {
-    while (true) {
-        try updateRenderData(data.allocator, data.render_data, data.config_file);
-        std.time.sleep(std.time.ns_per_s * 2);
-    }
-}
-
-fn updateRenderData(alloc: *std.mem.Allocator, data: *RenderData, config_file: *std.fs.File) !void {
-    const config_text = try config_file.readToEndAlloc(alloc, 4096);
-    defer alloc.free(config_text);
-    try config_file.seekTo(0);
-
-    var config_tree = zzz.ZTree(1, 30){};
-    const root = try config_tree.appendText(config_text);
-    root.convertStrings();
+/// updates the render data from the config file
+fn updateRenderData(root: *zzz.ZNode, data: *RenderData) void {
 
     const render = root.getChild(0).?;
     const torus = root.getChild(1).?;
@@ -168,6 +151,14 @@ fn updateRenderData(alloc: *std.mem.Allocator, data: *RenderData, config_file: *
     data.phi_spacing = pi2 / (data.points_per_revolution*1.25);
 
     data.frame_cycles = @floatToInt(usize, data.points_per_revolution*(data.points_per_revolution*1.25));
+}
+
+/// passes data needed to thread to update the render data
+fn updateDataThread(data: ThreadData) !void {
+    while (true) {
+        updateRenderData(try getConfigNode(data.allocator, data.config_file), data.render_data);
+        std.time.sleep(std.time.ns_per_s); // wait 1 second between updating the file
+    }
 }
 
 fn renderFrame(data: *RenderData, a: f32, b: f32, frames: usize) !void {
