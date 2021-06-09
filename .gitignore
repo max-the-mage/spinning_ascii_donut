@@ -1,4 +1,5 @@
 deps.zig
+zig-out
 zig-cache
 .gyro
 gyro.lock

@@ -218,14 +218,13 @@ fn renderFrame(data: *RenderData, a: f32, b: f32, frames: usize) !void {
         }
     }
 
-    std.debug.print("\x1b[H", .{});
     for (range(data.height)) |_,i| {
         _=try std.fmt.bufPrint(
             out_buf[(i*owidth)..(owidth+i*owidth)],
             "{s}\n", .{output[(i*data.width)..(data.width+(i*data.width))]}
         );
     }
-    std.debug.print("{s}", .{out_buf});
+    std.debug.print("\x1b[H{s}", .{out_buf});
     
     if (@mod(frames, 30) == 0) {
         const thirty_frame_time = fps_timer.lap();
@@ -238,13 +237,9 @@ fn renderFrame(data: *RenderData, a: f32, b: f32, frames: usize) !void {
     const fps = 1.0/(@intToFloat(f64, frame_time) * 0.000000001);
 
     std.debug.print(
-        "K1({d:.3}) K2({d}) R1({d}) R2({d}) dimensions({d}x{d}) frame_cycles({d}) illumination_detail({}) rotation_speed({d:.1})\n",
+        "K1({d:.3}) K2({d}) R1({d}) R2({d}) dimensions({d}x{d}) frame_cycles({d}) illumination_detail({}) rotation_speed({d:.1})\ndelta_multiplier({d:.3}) fps({d:.2})\nb",
     .{
         data.k1, data.k2, data.r1, data.r2, data.width, data.height, 
-        data.frame_cycles, lumi.len, data.rotation_speed,
+        data.frame_cycles, lumi.len, data.rotation_speed, delta_multiplier, fps
     });
-    std.debug.print(
-        "delta_multiplier({d:.3}) fps({d:^.2})\t\t",
-        .{delta_multiplier, fps}
-    );
 }
