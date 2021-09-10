@@ -43,12 +43,6 @@ const RenderData = struct{
     frame_cycles: usize,
 };
 
-const ThreadData = struct {
-    allocator: *std.mem.Allocator,
-    render_data: *RenderData,
-    config_file: *std.fs.File,
-};
-
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     var alloc = &gpa.allocator;
@@ -59,11 +53,15 @@ pub fn main() !void {
     var config_file = try std.fs.cwd().openFile("res/config.zzz", .{.read = true});
     var data = getRenderData(try getConfigNode(alloc, &config_file));
 
-    var cu_thread = try std.Thread.spawn(updateDataThread, .{
-        .allocator = alloc,
-        .render_data = &data,
-        .config_file = &config_file,
-    });
+    _ = try std.Thread.spawn(
+        .{},
+        updateDataThread,
+        .{
+            alloc,
+            &data,
+            &config_file,
+        },
+    );
 
     owidth = data.width+1;
 
@@ -154,9 +152,9 @@ fn updateRenderData(root: *zzz.ZNode, data: *RenderData) void {
 }
 
 /// passes data needed to thread to update the render data
-fn updateDataThread(data: ThreadData) !void {
+fn updateDataThread(allocator: *std.mem.Allocator, render_data: *RenderData, config_file: *std.fs.File) !void {
     while (true) {
-        updateRenderData(try getConfigNode(data.allocator, data.config_file), data.render_data);
+        updateRenderData(try getConfigNode(allocator, config_file), render_data);
         std.time.sleep(std.time.ns_per_s); // wait 1 second between updating the file
     }
 }
@@ -186,7 +184,7 @@ fn renderFrame(data: *RenderData, a: f32, b: f32, frames: usize) !void {
 
             // circle points
             const circle_x = data.r2 + data.r1*cos_theta;
-            const circle_y = data.r1*sin_theta;
+            //const circle_y = data.r1*sin_theta;
 
             // one over z
             const ooz = 1.0/(sin_phi*circle_x*sin_a + sin_theta*cos_a + data.k2);
